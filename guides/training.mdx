@@ -1,0 +1,108 @@
+---
+title: Training Models
+description: Learn how to train emotion prediction models using the provided notebooks
+---
+
+This guide walks you through training the text-based emotion prediction models using the Jupyter notebooks included in the project.
+
+## Overview
+
+The project includes two primary notebooks for model training:
+
+- **emotion_prediction.ipynb** - Trains the basic emotion classifier
+- **labels_clasifier__textbased_emotion_prediction.ipynb** - Trains the multi-label toxicity classifier
+
+## Prerequisites
+
+Before training models, ensure you have:
+
+- Python 3.x installed
+- Virtual environment set up
+- All dependencies installed from `requirements.txt`
+
+<Steps>
+
+### Create Virtual Environment
+
+Create a new virtual environment for the project:
+
+```bash
+python3 -m venv "text_prediction"
+```
+
+### Install Dependencies
+
+Install all required packages:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+### Navigate to Notebooks
+
+Access the training notebooks in the `notebooks/` directory:
+
+```bash
+cd notebooks/
+jupyter notebook
+```
+
+### Train Emotion Classifier
+
+Open and run `emotion_prediction.ipynb` to train the basic emotion classification model. This notebook creates the `emotion_classifier.model` file.
+
+### Train Multi-Label Toxicity Classifier
+
+Open and run `labels_clasifier__textbased_emotion_prediction.ipynb` to train the neural network model that classifies text into 6 toxicity categories:
+
+- Toxic
+- Severe Toxic
+- Obscene
+- Threat
+- Insult
+- Identity Hate
+
+This notebook produces the PyTorch model weights file `model_26_87.12.pth`.
+
+</Steps>
+
+## Model Artifacts
+
+After training, the following files are generated in the `models/` directory:
+
+| File | Description |
+|------|-------------|
+| `emotion_classifier.model` | Pickle file containing the trained emotion classifier |
+| `model_26_87.12.pth` | PyTorch weights for the multi-label toxicity classifier (87.12% accuracy) |
+| `vectorizer2.pickle` | Text vectorizer for feature extraction |
+| `word_dict.json` | Word-to-index mapping for embeddings |
+| `train_tensor.pt` | Training data tensors |
+| `train_labels.pt` | Training labels |
+| `test_tensor.pt` | Test data tensors |
+| `test_labels.pt` | Test labels |
+
+## Model Architecture
+
+The multi-label classifier uses a neural network with the following structure:
+
+```python
+class base_line(nn.Module):
+  def __init__(self, fin, out):
+    super(base_line, self).__init__()
+    self.fc1 = nn.Linear(self.fin, 2048)
+    self.fc2 = nn.Linear(2048, 1024)
+    self.fc3 = nn.Linear(1024, 512)
+    self.relu = nn.ReLU()
+    self.fc4 = nn.Linear(512, self.out)
+    self.sigmoid = nn.Sigmoid()
+```
+
+The model uses:
+- 10-dimensional word embeddings
+- 4 fully connected layers (2048 → 1024 → 512 → 6)
+- ReLU activation
+- Sigmoid output for multi-label classification
+
+## Next Steps
+
+After training your models, learn how to [deploy the Flask application](/guides/deployment) to start making predictions.

@@ -1,0 +1,268 @@
+---
+title: 'Text Preprocessing'
+description: 'Text cleaning, lemmatization, and vectorization pipeline'
+---
+
+## Overview
+
+The text preprocessing pipeline transforms raw input text into clean, normalized tokens suitable for machine learning models. This involves contraction expansion, lowercasing, special character removal, and lemmatization.
+
+## Clean Text Function
+
+The `clean_text` function is the core preprocessing component:
+
+```python
+from nltk.stem import WordNetLemmatizer
+import re
+
+nltk.download('omw-1.4')
+nltk.download('wordnet')
+lemmatizer = WordNetLemmatizer()
+
+def clean_text(text):
+    """
+    Process text - Lemmatizing the texts
+    """
+    # Implementation details below...
+```
+
+## Preprocessing Steps
+
+### 1. Lowercasing
+
+```python
+text = text.lower()
+```
+
+Converts all characters to lowercase for case-insensitive matching.
+
+### 2. Contraction Expansion
+
+The function expands common English contractions using regex substitution:
+
+```python
+text = re.sub(r"what's", "what is ", str(text)) 
+text = re.sub(r"'s", " ", str(text)) 
+text = re.sub(r"'ve", " have ", str(text)) 
+text = re.sub(r"can't", "cannot ", str(text)) 
+text = re.sub(r"ain't", 'is not', str(text)) 
+text = re.sub(r"won't", 'will not', str(text)) 
+text = re.sub(r"n't", " not ", str(text)) 
+text = re.sub(r"i'm", "i am ", str(text)) 
+text = re.sub(r"'re", " are ", str(text)) 
+text = re.sub(r"'d", " would ", str(text)) 
+text = re.sub(r"'ll", " will ", str(text)) 
+text = re.sub(r"'scuse", " excuse ", str(text))
+```
+
+<Info>
+Contraction expansion helps normalize text by converting informal speech patterns into their full forms, improving model consistency.
+</Info>
+
+### Supported Contractions
+
+| Contraction | Expansion |
+|-------------|----------|
+| what's | what is |
+| 's | (removed) |
+| 've | have |
+| can't | cannot |
+| ain't | is not |
+| won't | will not |
+| n't | not |
+| i'm | i am |
+| 're | are |
+| 'd | would |
+| 'll | will |
+| 'scuse | excuse |
+
+### 3. Special Character Removal
+
+```python
+text = re.sub('W', ' ', str(text)) 
+text = re.sub(' +', ' ', str(text))
+```
+
+<Note>
+The pattern `'W'` removes literal 'W' characters (likely a typo - should be `'\W'` for non-word characters).
+</Note>
+
+### 4. Hyperlink Removal
+
+```python
+text = re.sub(r"https?://\S+|www\.\S+", ' ', str(text))
+```
+
+Removes URLs starting with:
+- `http://`
+- `https://`  
+- `www.`
+
+<Tip>
+Removing URLs prevents the model from learning spurious correlations with specific domains and reduces noise in text analysis.
+</Tip>
+
+### 5. Punctuation and Number Removal
+
+```python
+text = re.sub('[^A-Za-z0-9]+', ' ', str(text))
+```
+
+Keeps only alphanumeric characters, replacing all other characters with spaces.
+
+### 6. Lemmatization
+
+```python
+text = lemmatizer.lemmatize(text)
+```
+
+Reduces words to their base/dictionary form using NLTK's WordNetLemmatizer.
+
+<Info>
+**Lemmatization vs. Stemming**: Lemmatization produces actual dictionary words (e.g., "running" → "run"), while stemming uses simple rules that may produce non-words (e.g., "running" → "runn").
+</Info>
+
+### 7. Whitespace Trimming
+
+```python
+text = text.strip(' ')
+return text
+```
+
+Removes leading and trailing spaces from the final result.
+
+## Complete Pipeline
+
+The full preprocessing function:
+
+```python
+def clean_text(text):
+    # removing aphostrophe words
+    text = text.lower()
+    text = re.sub(r"what's", "what is ", str(text)) 
+    text = re.sub(r"'s", " ", str(text)) 
+    text = re.sub(r"'ve", " have ", str(text)) 
+    text = re.sub(r"can't", "cannot ", str(text)) 
+    text = re.sub(r"ain't", 'is not', str(text)) 
+    text = re.sub(r"won't", 'will not', str(text)) 
+    text = re.sub(r"n't", " not ", str(text)) 
+    text = re.sub(r"i'm", "i am ", str(text)) 
+    text = re.sub(r"'re", " are ", str(text)) 
+    text = re.sub(r"'d", " would ", str(text)) 
+    text = re.sub(r"'ll", " will ", str(text)) 
+    text = re.sub(r"'scuse", " excuse ", str(text)) 
+    text = re.sub('W', ' ', str(text)) 
+    text = re.sub(' +', ' ', str(text))
+    # Remove hyperlinks
+    text = re.sub(r"https?://\S+|www\.\S+", ' ', str(text))
+    # Remove punctuations, numbers and special characters
+    text = re.sub('[^A-Za-z0-9]+', ' ', str(text))
+    text = lemmatizer.lemmatize(text)
+    text = text.strip(' ')
+    return text
+```
+
+## Vectorization
+
+After cleaning, text is vectorized for the emotion classifier:
+
+```python
+text_cleaned = clean_text(text)
+text_vector = vectorizer.fit_transform([text_cleaned])
+```
+
+<Note>
+Using `fit_transform` on inference data is unconventional. Typically, you should only use `transform` with a pre-fitted vectorizer to ensure consistent feature space.
+</Note>
+
+## Word Embedding Conversion
+
+For the neural network, cleaned text undergoes a different transformation:
+
+```python
+def converter(words):
+    return average_tensor(
+        embedding(torch.tensor(coded_words(words.split(), word_dict)))
+    )
+```
+
+### Process:
+
+1. **Tokenization**: `words.split()` splits on whitespace
+2. **Encoding**: `coded_words()` maps words to indices using `word_dict`
+3. **Embedding**: PyTorch embedding layer converts indices to 10-dim vectors
+4. **Averaging**: `average_tensor()` computes mean embedding
+
+<Tip>
+The embedding conversion uses the raw (uncleaned) text, while the emotion classifier uses cleaned text. This dual approach may be intentional to preserve information for different models.
+</Tip>
+
+## Example Transformation
+
+**Input:**
+```text
+"I can't believe what's happening! Visit https://example.com for more info."
+```
+
+**After Preprocessing:**
+```text
+"i cannot believe what is happening visit for more info"
+```
+
+**Changes Applied:**
+1. Lowercased
+2. `can't` → `cannot`
+3. `what's` → `what is`
+4. Exclamation mark removed
+5. URL removed
+6. Extra spaces normalized
+7. Trimmed whitespace
+
+## NLTK Dependencies
+
+The preprocessing pipeline requires NLTK data packages:
+
+```python
+nltk.download('omw-1.4')      # Open Multilingual Wordnet
+nltk.download('wordnet')       # WordNet lexical database
+```
+
+<Info>
+These downloads occur at runtime when the application starts, ensuring the required NLTK data is available for lemmatization.
+</Info>
+
+## Additional Text Processing
+
+Beyond emotion prediction, the system includes specialized extraction functions:
+
+### Date Extraction
+
+```python
+def get_dates(text):
+    # Matches formats like:
+    # dd/mm/yyyy, dd-mm-yyyy
+    # dd MMM yyyy
+    # Mar-20-2009, March 20, 2009
+```
+
+### Country Detection
+
+```python
+def find_country(text):
+    for country in pycountry.countries:
+        if country.name in text:
+            # Add to results
+```
+
+### Name Extraction
+
+```python
+def get_people_names(text):
+    tokens = nltk.word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+    # Extract proper nouns (NNP tags)
+```
+
+<Tip>
+These extraction functions operate on the original text before preprocessing to preserve proper nouns, capitalization, and formatting needed for entity recognition.
+</Tip>

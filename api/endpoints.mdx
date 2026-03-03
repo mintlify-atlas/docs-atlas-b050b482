@@ -1,0 +1,62 @@
+---
+title: 'Endpoints'
+description: 'API endpoint documentation for text-based emotion prediction'
+---
+
+## GET /textbased_emotion
+
+Analyzes text content for toxicity, emotion, and extracts entities like countries, people, and dates.
+
+### Parameters
+
+<ParamField query="text" type="string" required>
+  The text content to analyze. Should be URL-encoded when passed as a query parameter.
+  
+  **Example**: `Write your text here`
+</ParamField>
+
+### Request Example
+
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=Write%20your%20text%20here"
+```
+
+### Toxicity Classification
+
+The API uses a **threshold of 0.29** to classify text across six toxicity categories:
+
+1. **toxic** - General toxic language
+2. **severe_toxic** - Severely toxic or hateful language
+3. **obscene** - Obscene or vulgar content
+4. **threat** - Threatening language
+5. **insult** - Insulting content
+6. **identity_hate** - Identity-based hate speech
+
+Each category returns "Yes" if the model's confidence score exceeds 0.29, otherwise "No".
+
+### Emotion Classification
+
+The emotion classifier determines if the text represents:
+- **Positive** emotion
+- **Negative** emotion
+
+If all six toxicity categories are flagged as "Yes", the text is marked as inappropriate and the emotion defaults to "Negative".
+
+### Entity Extraction
+
+The API automatically extracts:
+- **Countries**: Geographic locations mentioned in the text
+- **People**: Person names identified using NER patterns
+- **Dates**: Date references in the text
+- **Hours**: Time ranges in the format "HH:MM - HH:MM"
+
+### Response
+
+Returns an HTML page rendered with the analysis results. See [Response Format](/api/response-format) for details on all fields returned.
+
+### Error Handling
+
+If no text parameter is provided or the text cannot be parsed, the API returns an error page with:
+```
+Sorry! Unable to parse
+```

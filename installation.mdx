@@ -1,0 +1,243 @@
+---
+title: Installation
+description: Set up the text-based emotion prediction microservice in your local environment
+---
+
+## Prerequisites
+
+Before installing the microservice, ensure you have:
+
+- **Python 3.7+** - The service uses modern Python features and type hints
+- **pip** - Python package installer (usually bundled with Python)
+- **Git** (optional) - For cloning the repository
+- **4GB+ RAM** - Required for loading PyTorch models and NLTK data
+
+<Warning>
+  The PyTorch models and dependencies require significant disk space (~2GB). Ensure you have adequate storage available.
+</Warning>
+
+## Installation steps
+
+<Steps>
+  <Step title="Create virtual environment">
+    Set up an isolated Python environment to avoid dependency conflicts:
+
+    ```bash
+    python3 -m venv text_prediction
+    ```
+
+    This creates a new directory `text_prediction/` containing the virtual environment.
+
+    Activate the environment:
+
+    <CodeGroup>
+      ```bash Linux/macOS
+      source text_prediction/bin/activate
+      ```
+
+      ```bash Windows (Command Prompt)
+      text_prediction\Scripts\activate.bat
+      ```
+
+      ```bash Windows (PowerShell)
+      text_prediction\Scripts\Activate.ps1
+      ```
+    </CodeGroup>
+
+    You should see `(text_prediction)` prefix in your terminal prompt.
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required Python packages from `requirements.txt`:
+
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+
+    This installs 89 packages including:
+
+    | Package | Version | Purpose |
+    |---------|---------|----------|
+    | **torch** | 1.13.0 | Neural network framework for emotion classification |
+    | **Flask** | 2.2.2 | Web framework for the REST API endpoint |
+    | **nltk** | 3.7 | Natural language processing and text preprocessing |
+    | **scikit-learn** | 1.0.1 | Traditional ML classifier for sentiment analysis |
+    | **pycountry** | 22.3.5 | Country name extraction from text |
+    | **numpy** | 1.23.5 | Numerical computing for tensor operations |
+    | **pandas** | 1.5.2 | Data manipulation utilities |
+
+    <Note>
+      The installation downloads PyTorch binaries which can take several minutes depending on your connection speed.
+    </Note>
+  </Step>
+
+  <Step title="Download NLTK data">
+    The microservice automatically downloads required NLTK resources on first run:
+
+    ```python
+    nltk.download('omw-1.4')      # Open Multilingual Wordnet
+    nltk.download('wordnet')       # WordNet lexical database
+    ```
+
+    These downloads happen in microservice.py:91-92 when you start the server. No manual action needed.
+  </Step>
+
+  <Step title="Verify model files">
+    Ensure the pre-trained model files exist in the `models/` directory:
+
+    ```bash
+    models/
+    ├── model_26_87.12.pth           # PyTorch neural network weights
+    ├── word_dict.json                # Word to index mapping for embeddings
+    ├── emotion_classifier.model      # Scikit-learn sentiment classifier
+    └── vectorizer2.pickle            # TF-IDF vectorizer
+    ```
+
+    These files are loaded during initialization (microservice.py:36-42):
+
+    ```python
+    vectorizer = pickle.load(open(f'models/vectorizer2.pickle', 'rb'))
+    emotion_classifier = pickle.load(open('models/emotion_classifier.model', 'rb'))
+
+    with open('models/word_dict.json') as json_file:
+        word_dict = json.load(json_file)
+    labels_wigths = 'models/model_26_87.12.pth'
+    ```
+
+    <Warning>
+      The microservice will fail to start if any model files are missing. Ensure all four files are present before running.
+    </Warning>
+  </Step>
+
+  <Step title="Run the microservice">
+    Start the Flask development server:
+
+    ```bash
+    python3 microservice.py
+    ```
+
+    Expected output:
+
+    ```
+    [nltk_data] Downloading package omw-1.4 to /home/user/nltk_data...
+    [nltk_data] Downloading package wordnet to /home/user/nltk_data...
+    Microserver running in port 3200
+     * Serving Flask app 'microservice'
+     * Debug mode: off
+     * Running on http://127.0.0.1:3200
+    ```
+
+    The server runs on:
+    - **Host**: 127.0.0.1 (localhost only, not accessible from network)
+    - **Port**: 3200
+
+    Configuration is defined in microservice.py:29-30:
+
+    ```python
+    PORT = 3200
+    HOST = "127.0.0.1"
+    ```
+  </Step>
+
+  <Step title="Test the installation">
+    Verify the service is working by sending a test request:
+
+    ```bash
+    curl "http://127.0.0.1:3200/textbased_emotion?text=Hello%20world"
+    ```
+
+    You should receive an HTML response with prediction results. If you see an HTML page, the installation is successful.
+
+    Alternatively, visit the home page in your browser:
+
+    ```
+    http://127.0.0.1:3200/
+    ```
+  </Step>
+</Steps>
+
+## Configuration options
+
+### Change server port
+
+To run the service on a different port, modify `PORT` in microservice.py:29:
+
+```python
+PORT = 5000  # Change from default 3200
+HOST = "127.0.0.1"
+```
+
+### Enable network access
+
+To accept requests from other machines, change the host:
+
+```python
+PORT = 3200
+HOST = "0.0.0.0"  # Listen on all network interfaces
+```
+
+<Warning>
+  Exposing the service to the network without authentication may pose security risks. Only use `0.0.0.0` in trusted environments.
+</Warning>
+
+### Adjust toxicity threshold
+
+The default threshold for toxicity classification is 0.29 (microservice.py:206-211). To modify sensitivity:
+
+```python
+# Lower threshold = more sensitive (more content flagged as toxic)
+# Higher threshold = less sensitive (fewer false positives)
+toxic_result = "Yes" if res[0][0].item() > 0.35 else "No"  # Less sensitive
+severe_toxic_result = "Yes" if res[0][1].item() > 0.35 else "No"
+```
+
+## Troubleshooting
+
+### Missing model files
+
+**Error**: `FileNotFoundError: [Errno 2] No such file or directory: 'models/word_dict.json'`
+
+**Solution**: Ensure all four model files exist in the `models/` directory before starting the server.
+
+### NLTK data download fails
+
+**Error**: `Resource omw-1.4 not found`
+
+**Solution**: Manually download NLTK data:
+
+```python
+import nltk
+nltk.download('omw-1.4')
+nltk.download('wordnet')
+```
+
+### Port already in use
+
+**Error**: `OSError: [Errno 48] Address already in use`
+
+**Solution**: Either stop the process using port 3200 or change the `PORT` variable in microservice.py.
+
+### PyTorch CPU warnings
+
+**Warning**: `UserWarning: CUDA not available, using CPU`
+
+**Solution**: This is expected behavior. The model loads with `map_location=torch.device('cpu')` (microservice.py:73) for CPU inference.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Make your first prediction request and understand the response format
+  </Card>
+  <Card
+    title="Model architecture"
+    icon="brain"
+    href="/introduction#model-architecture"
+  >
+    Learn how the neural network and classifiers work together
+  </Card>
+</CardGroup>

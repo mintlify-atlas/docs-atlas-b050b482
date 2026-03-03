@@ -1,0 +1,185 @@
+---
+title: Deploying the Flask App
+description: Learn how to deploy and run the text-based emotion prediction microservice
+---
+
+This guide covers how to deploy and run the Flask-based emotion prediction microservice.
+
+## Configuration
+
+The application is configured with the following default settings in `microservice.py`:
+
+```python
+PORT = 3200
+HOST = "127.0.0.1"
+```
+
+## Deployment Steps
+
+<Steps>
+
+### Create Virtual Environment
+
+First, create a virtual environment for the application:
+
+```bash
+python3 -m venv "text_prediction"
+```
+
+### Activate Virtual Environment
+
+Activate the virtual environment:
+
+```bash
+# On Linux/Mac
+source text_prediction/bin/activate
+
+# On Windows
+text_prediction\Scripts\activate
+```
+
+### Install Dependencies
+
+Install all required packages:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+### Verify Model Files
+
+Ensure all trained model files exist in the `models/` directory:
+
+- `emotion_classifier.model`
+- `model_26_87.12.pth`
+- `vectorizer2.pickle`
+- `word_dict.json`
+
+If these files don't exist, you'll need to [train the models first](/guides/training).
+
+### Start the Flask Server
+
+Run the microservice:
+
+```bash
+python3 microservice.py
+```
+
+You should see:
+
+```
+Microserver running in port 3200
+```
+
+</Steps>
+
+## Accessing the Application
+
+Once the server is running, you can access it at:
+
+**Home Page:**
+```
+http://127.0.0.1:3200/
+```
+
+**API Endpoint:**
+```
+http://127.0.0.1:3200/textbased_emotion?text=Your%20text%20here
+```
+
+## API Usage
+
+The application provides a single GET endpoint for emotion prediction:
+
+### Endpoint
+
+```
+GET /textbased_emotion
+```
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | Yes | The text to analyze for emotion and toxicity |
+
+### Example Request
+
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=I%20am%20so%20happy%20today!"
+```
+
+### Response
+
+The endpoint returns an HTML page displaying:
+
+- **Emotion**: Positive or Negative sentiment
+- **Toxicity Classification**: Yes/No for each category
+  - Toxic
+  - Severe Toxic
+  - Obscene
+  - Threat
+  - Insult
+  - Identity Hate
+- **Extracted Entities**: Countries, people names, dates
+- **Inappropriate Flag**: Overall toxicity indicator
+
+## Model Initialization
+
+The application loads models on startup:
+
+```python
+# Load vectorizer and emotion classifier
+vectorizer = pickle.load(open('models/vectorizer2.pickle', 'rb'))
+emotion_classifier = pickle.load(open('models/emotion_classifier.model', 'rb'))
+
+# Load word dictionary
+with open('models/word_dict.json') as json_file:
+    word_dict = json.load(json_file)
+
+# Initialize neural network model
+embedding = nn.Embedding(len(word_dict), 10)
+model = base_line(10, 6)
+model.load_state_dict(torch.load('models/model_26_87.12.pth', 
+                                  map_location=torch.device('cpu')))
+model.eval()
+```
+
+## Production Considerations
+
+<Accordion title="Changing Host and Port">
+
+To modify the host and port, edit the configuration in `microservice.py`:
+
+```python
+PORT = 8080  # Your desired port
+HOST = "0.0.0.0"  # Listen on all interfaces
+```
+
+</Accordion>
+
+<Accordion title="Using a Production Server">
+
+For production deployments, use a WSGI server like Gunicorn instead of Flask's development server:
+
+```bash
+pip install gunicorn
+gunicorn -w 4 -b 127.0.0.1:3200 microservice:app
+```
+
+</Accordion>
+
+<Accordion title="Performance Optimization">
+
+Consider these optimizations for production:
+
+- Load models once at startup (already implemented)
+- Use GPU acceleration if available (modify `torch.device('cpu')` to `torch.device('cuda')`)
+- Implement request caching for repeated queries
+- Add rate limiting to prevent abuse
+
+</Accordion>
+
+## Next Steps
+
+Learn about the [entity extraction features](/guides/entity-extraction) available in the API.

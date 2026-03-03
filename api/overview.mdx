@@ -1,0 +1,41 @@
+---
+title: 'API Overview'
+description: 'Overview of the Text-Based Emotion Prediction API'
+---
+
+## Introduction
+
+The Text-Based Emotion Prediction API analyzes text content to detect:
+- Inappropriate language (toxicity classification)
+- Emotional sentiment (positive or negative)
+- Six toxicity categories: toxic, severe_toxic, obscene, threat, insult, identity_hate
+- Additional entity extraction: countries, people names, dates, and time ranges
+
+## Base URL
+
+```
+http://127.0.0.1:3200
+```
+
+## Authentication
+
+**No authentication required.** The API is open and does not require any API keys, tokens, or authentication headers.
+
+## Content Type
+
+The API accepts GET requests with URL-encoded query parameters and returns HTML responses with the analysis results rendered in a template.
+
+## Quick Start
+
+To get started, simply make a GET request to the `/textbased_emotion` endpoint with your text:
+
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=Hello%20world"
+```
+
+## Features
+
+- **Toxicity Detection**: Uses a threshold of 0.29 to classify text across 6 toxicity categories
+- **Emotion Classification**: Determines if the overall emotion is positive or negative
+- **Entity Extraction**: Automatically identifies countries, people names, dates, and time ranges
+- **Real-time Analysis**: Get instant results for any text input

@@ -1,80 +1,144 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with text-based emotion prediction in under 5 minutes
 ---
 
-## Get started in three steps
+## Get your prediction in 3 steps
 
-Get your documentation site running locally and make your first customization.
+This guide walks you through setting up the microservice and making your first emotion prediction request.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Install dependencies">
+    Create a virtual environment and install the required packages:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    python3 -m venv text_prediction
+    source text_prediction/bin/activate
+    pip3 install -r requirements.txt
+    ```
 
-### Step 2: Deploy your changes
+    <Note>
+      The installation includes PyTorch, Flask, NLTK, scikit-learn, and other ML libraries. This may take a few minutes.
+    </Note>
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  <Step title="Start the microservice">
+    Run the Flask server to start accepting prediction requests:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```bash
+    python3 microservice.py
+    ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    You should see output confirming the server is running:
 
-### Step 3: Go live
+    ```
+    Microserver running in port 3200
+     * Serving Flask app 'microservice'
+     * Running on http://127.0.0.1:3200
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    The service loads three pre-trained models on startup:
+    - Word embedding dictionary (`models/word_dict.json`)
+    - PyTorch neural network (`models/model_26_87.12.pth`)
+    - Emotion classifier (`models/emotion_classifier.model`)
+    - TF-IDF vectorizer (`models/vectorizer2.pickle`)
+  </Step>
+
+  <Step title="Make your first prediction">
+    Send a GET request to the `/textbased_emotion` endpoint with your text:
+
+    <CodeGroup>
+      ```bash cURL
+      curl "http://127.0.0.1:3200/textbased_emotion?text=This%20is%20a%20wonderful%20day"
+      ```
+
+      ```python Python
+      import requests
+
+      response = requests.get(
+          "http://127.0.0.1:3200/textbased_emotion",
+          params={"text": "This is a wonderful day"}
+      )
+      print(response.text)
+      ```
+
+      ```javascript JavaScript
+      const text = encodeURIComponent("This is a wonderful day");
+      const response = await fetch(
+        `http://127.0.0.1:3200/textbased_emotion?text=${text}`
+      );
+      const html = await response.text();
+      console.log(html);
+      ```
+    </CodeGroup>
+
+    The endpoint returns an HTML page with prediction results showing:
+    - Whether the text contains inappropriate language
+    - Emotion classification (Positive/Negative)
+    - Scores for all six toxicity categories (toxic, severe_toxic, obscene, threat, insult, identity_hate)
+    - Additional extracted entities (countries, people names, dates)
+  </Step>
+</Steps>
+
+## Understanding the response
+
+The microservice processes your text through multiple stages:
+
+1. **Text preprocessing** (microservice.py:94-120)
+   - Converts to lowercase
+   - Expands contractions ("can't" → "cannot")
+   - Removes hyperlinks and special characters
+   - Applies lemmatization
+
+2. **Neural network inference** (microservice.py:203-204)
+   - Converts cleaned text to word embeddings
+   - Passes through the 4-layer neural network
+   - Generates six probability scores
+
+3. **Toxicity classification** (microservice.py:206-219)
+   - Applies 0.29 threshold to each score
+   - Returns "Yes"/"No" for each category
+   - Flags as inappropriate if all six categories are positive
+
+4. **Sentiment analysis** (microservice.py:221-229)
+   - Vectorizes text using TF-IDF
+   - Classifies overall emotion as Positive or Negative
+   - Adjusts based on inappropriate content detection
+
+<Note>
+  The threshold value of 0.29 (microservice.py:206) balances precision and recall based on validation set performance.
+</Note>
+
+## Try different examples
+
+Test the model with various text inputs:
+
+```bash
+# Positive sentiment
+curl "http://127.0.0.1:3200/textbased_emotion?text=I%20love%20this%20amazing%20product"
+
+# Negative sentiment
+curl "http://127.0.0.1:3200/textbased_emotion?text=This%20is%20terrible%20and%20disappointing"
+
+# Text with entities
+curl "http://127.0.0.1:3200/textbased_emotion?text=Meeting%20in%20Paris%20on%20March%2020,%202024"
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Installation guide"
+    icon="download"
+    href="/installation"
+  >
+    Learn about detailed setup options and model file requirements
+  </Card>
+  <Card
+    title="Model architecture"
+    icon="brain"
+    href="/introduction#model-architecture"
+  >
+    Dive deeper into the neural network design and training
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

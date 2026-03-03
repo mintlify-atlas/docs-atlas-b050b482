@@ -1,0 +1,265 @@
+---
+title: Entity Extraction
+description: Use named entity extraction to identify people, dates, and countries in text
+---
+
+The emotion prediction service includes powerful entity extraction features that automatically identify people names, dates, and countries mentioned in text.
+
+## Overview
+
+Three entity extraction functions are available in `microservice.py`:
+
+- `get_people_names()` - Extracts person names using NLP tagging
+- `get_dates()` - Identifies dates in various formats
+- `find_country()` - Detects country names
+
+## Extracting People Names
+
+The `get_people_names()` function uses NLTK's part-of-speech tagging to identify proper nouns that represent people's names.
+
+### Function Reference
+
+```python
+def get_people_names(text):
+    """
+    Get the people names that are in text
+    """
+    names = ""
+    tokens = nltk.word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+    for tupla in tagged:
+        if tupla[1] == "NNP":
+            if names != "":
+                names += ", "
+            names += tupla[0]
+    return names
+```
+
+**Location:** `microservice.py:174-186`
+
+### How It Works
+
+<Steps>
+
+### Tokenize Text
+
+The function first splits the text into individual words (tokens) using NLTK's word tokenizer.
+
+### Apply POS Tagging
+
+Each token is tagged with its part-of-speech (noun, verb, adjective, etc.).
+
+### Identify Proper Nouns
+
+Tokens tagged as "NNP" (proper noun, singular) are extracted. These typically represent names of people, places, or organizations.
+
+### Return Comma-Separated List
+
+All identified proper nouns are joined with commas and returned as a string.
+
+</Steps>
+
+### Example Usage
+
+```python
+text = "John Smith and Mary Johnson met in New York yesterday."
+names = get_people_names(text)
+# Returns: "John, Smith, Mary, Johnson, New, York"
+```
+
+<Note>
+The function returns all proper nouns, which may include place names. The API automatically filters out detected countries and dates from the names list.
+</Note>
+
+## Extracting Dates
+
+The `get_dates()` function uses regular expressions to identify dates in multiple formats.
+
+### Function Reference
+
+```python
+def get_dates(text):
+    """
+    Get the dates that are in text
+    """
+    search = ""
+    
+    # dd/mm/yyyy; dd-mm-yyyy; dd mm yyyy 
+    vals = re.findall(r"[\d]{1,2}[\s/-][\d]{1,2}[/-][\d]{2,4}", text)
+    if vals:
+        for i in vals:
+            if search != "":
+                search += ", "
+            search += f"{i}"
+    
+    # dd MMM yyyy
+    vals = re.findall(r"[\d]{1,2} [ADFJMNOS]\w* [\d]{2,4}", text)
+    if vals:
+        for i in vals:
+            if search != "":
+                search += ", "
+            search += f"{i}"
+    
+    # Mar-20-2009; Mar 20, 2009; March 20, 2009; etc.
+    vals = re.findall(r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z.,-]*[\s-]?(\d{1,2})?[,\s-]?[\s]?\d{4}', text, re.I|re.M)
+    if vals:
+        for i in vals:
+            if search != "":
+                search += ", "
+            search += f"{i}"
+
+    return "-" if search == "" else search
+```
+
+**Location:** `microservice.py:122-160`
+
+### Supported Date Formats
+
+The function recognizes these date patterns:
+
+| Format | Example | Pattern |
+|--------|---------|----------|
+| Numeric with separators | 25/12/2023, 25-12-2023 | dd/mm/yyyy, dd-mm-yyyy |
+| Day Month Year | 25 December 2023 | dd MMM yyyy |
+| Month-Day-Year | Mar-20-2009, Mar 20, 2009 | MMM dd, yyyy |
+| Month Year | March 2009, Mar 2009 | MMM yyyy |
+
+### Example Usage
+
+```python
+text = "The meeting is scheduled for 15/03/2024 and 20 December 2024."
+dates = get_dates(text)
+# Returns: "15/03/2024, 20 December 2024"
+```
+
+<Note>
+If no dates are found, the function returns "-" instead of an empty string.
+</Note>
+
+## Extracting Countries
+
+The `find_country()` function uses the `pycountry` library to detect country names in text.
+
+### Function Reference
+
+```python
+def find_country(text):
+    """
+    Get the countries that are in text
+    """
+    countries = ""
+    for country in pycountry.countries:
+        if country.name in text:
+            if countries != "":
+                countries += ", "
+            countries += country.name
+    return "-" if countries == "" else countries
+```
+
+**Location:** `microservice.py:162-172`
+
+### How It Works
+
+The function iterates through all countries in the `pycountry` database and checks if each country's official name appears in the input text.
+
+### Example Usage
+
+```python
+text = "I visited France, Germany, and United Kingdom last summer."
+countries = find_country(text)
+# Returns: "France, Germany, United Kingdom"
+```
+
+### Supported Countries
+
+The function recognizes all official country names from the ISO 3166-1 standard, including:
+
+- United States
+- United Kingdom
+- France
+- Germany
+- Japan
+- And all other internationally recognized countries
+
+<Warning>
+The function only matches exact official country names. Informal names (e.g., "USA" instead of "United States") may not be detected.
+</Warning>
+
+## Integration with API
+
+All three entity extraction functions are automatically called when using the `/textbased_emotion` endpoint. The extracted entities are included in the response:
+
+```python
+text = request.args.get('text')
+
+countries = find_country(text)
+names = get_people_names(text)
+dates = get_dates(text)
+
+# Filter out countries and dates from names
+paises = countries.split(', ')
+for p in paises:
+    names = names.replace(p, "")
+
+fechas = dates.split(', ')
+for f in fechas:
+    names = names.replace(f, "")
+```
+
+The API automatically removes detected countries and dates from the people names list to reduce false positives.
+
+## Advanced Usage
+
+<Accordion title="Customizing Date Patterns">
+
+To add support for additional date formats, extend the `get_dates()` function with new regex patterns:
+
+```python
+# Add pattern for YYYY-MM-DD format
+vals = re.findall(r"\d{4}-\d{2}-\d{2}", text)
+if vals:
+    for i in vals:
+        if search != "":
+            search += ", "
+        search += f"{i}"
+```
+
+</Accordion>
+
+<Accordion title="Improving Name Extraction Accuracy">
+
+For better name extraction, consider:
+
+- Using Named Entity Recognition (NER) models like spaCy instead of simple POS tagging
+- Filtering out common non-name proper nouns
+- Implementing context-based filtering
+
+Example with spaCy:
+
+```python
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
+
+def get_people_names_advanced(text):
+    doc = nlp(text)
+    names = [ent.text for ent in doc.ents if ent.label_ == "PERSON"]
+    return ", ".join(names) if names else ""
+```
+
+</Accordion>
+
+<Accordion title="Handling Multiple Languages">
+
+The current implementation is optimized for English text. To support other languages:
+
+- Use language-specific NLTK models for tokenization and POS tagging
+- Adjust regex patterns for date formats common in other locales
+- The `pycountry` library supports country names in multiple languages
+
+</Accordion>
+
+## Next Steps
+
+- Learn how to [train custom models](/guides/training) for better accuracy
+- See the [deployment guide](/guides/deployment) to run the full application

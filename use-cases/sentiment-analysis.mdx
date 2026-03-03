@@ -1,0 +1,329 @@
+---
+title: 'Sentiment Analysis'
+description: 'Detect positive and negative emotions in text for customer insights and feedback analysis'
+---
+
+## Overview
+
+The emotion prediction API provides sentiment classification to determine whether text expresses positive or negative emotions. This is powered by a trained emotion classifier that analyzes cleaned and processed text.
+
+## How Sentiment Detection Works
+
+The API uses a two-stage approach:
+
+1. **Text Processing**: Text is cleaned, lemmatized, and vectorized (microservice.py:202-221)
+2. **Emotion Classification**: The vectorized text is analyzed to predict emotional sentiment
+3. **Smart Adjustment**: If content is flagged as inappropriate across all toxicity categories, it's automatically classified as "Negative"
+
+### Classification Logic
+
+```python
+# From microservice.py:224-229
+emotion = emotion_classifier.predict(text_vector)[0]
+if emotion == "negative" and not inappropriate:
+    emotion = "Positive"
+else:
+    emotion = "Negative" if inappropriate else "Positive"
+```
+
+## API Usage
+
+### Making a Request
+
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=I%20love%20this%20product!"
+```
+
+### Response Format
+
+The API returns sentiment along with toxicity classifications:
+
+```json
+{
+  "emotion": "Positive",
+  "text": "I love this product!",
+  "inappropriate": false,
+  "toxic_result": "No",
+  "severe_toxic_result": "No",
+  "obscene_result": "No",
+  "threat_result": "No",
+  "insult_result": "No",
+  "identity_hate_result": "No"
+}
+```
+
+## Use Case Scenarios
+
+<CardGroup cols={2}>
+  <Card title="Customer Feedback Analysis" icon="comment-dots">
+    Automatically classify customer reviews and support tickets as positive or negative. Route negative feedback to priority queues for faster resolution.
+  </Card>
+  <Card title="Social Media Monitoring" icon="hashtag">
+    Track brand sentiment across social platforms. Identify trends in positive or negative mentions over time.
+  </Card>
+  <Card title="Product Reviews" icon="star">
+    Analyze product review sentiment at scale. Correlate sentiment with star ratings to identify discrepancies.
+  </Card>
+  <Card title="Employee Feedback" icon="briefcase">
+    Gauge employee satisfaction from survey responses and feedback forms. Identify areas of concern requiring attention.
+  </Card>
+  <Card title="Chat Analytics" icon="message">
+    Monitor customer service chat conversations to measure customer satisfaction in real-time.
+  </Card>
+  <Card title="Email Campaign Analysis" icon="envelope">
+    Analyze responses to marketing emails to understand audience reception and improve future campaigns.
+  </Card>
+</CardGroup>
+
+## Implementation Examples
+
+### Basic Sentiment Analysis
+
+```python
+import requests
+from urllib.parse import quote
+
+def analyze_sentiment(text):
+    """
+    Analyze sentiment of given text
+    """
+    encoded_text = quote(text)
+    url = f"http://127.0.0.1:3200/textbased_emotion?text={encoded_text}"
+    
+    response = requests.get(url)
+    data = response.json()
+    
+    return {
+        'sentiment': data['emotion'],
+        'is_inappropriate': data['inappropriate'],
+        'text': text
+    }
+
+# Example usage
+result = analyze_sentiment("This is an amazing product! Highly recommend it.")
+print(f"Sentiment: {result['sentiment']}")
+# Output: Sentiment: Positive
+
+result = analyze_sentiment("Terrible experience, very disappointed.")
+print(f"Sentiment: {result['sentiment']}")
+# Output: Sentiment: Negative
+```
+
+### Customer Feedback Dashboard
+
+```python
+import requests
+from collections import Counter
+
+def analyze_feedback_batch(feedback_list):
+    """
+    Analyze multiple feedback entries and generate insights
+    """
+    results = []
+    
+    for feedback in feedback_list:
+        encoded_text = requests.utils.quote(feedback)
+        url = f"http://127.0.0.1:3200/textbased_emotion?text={encoded_text}"
+        
+        response = requests.get(url)
+        data = response.json()
+        
+        results.append({
+            'text': feedback,
+            'sentiment': data['emotion'],
+            'inappropriate': data['inappropriate']
+        })
+    
+    # Generate summary statistics
+    sentiments = [r['sentiment'] for r in results]
+    sentiment_counts = Counter(sentiments)
+    
+    return {
+        'total': len(results),
+        'positive': sentiment_counts.get('Positive', 0),
+        'negative': sentiment_counts.get('Negative', 0),
+        'positive_percentage': (sentiment_counts.get('Positive', 0) / len(results)) * 100,
+        'details': results
+    }
+
+# Example usage
+feedback_data = [
+    "Great service, very satisfied!",
+    "The product quality is excellent",
+    "Disappointed with the delivery time",
+    "Not what I expected, poor quality",
+    "Absolutely love it!"
+]
+
+summary = analyze_feedback_batch(feedback_data)
+print(f"Positive: {summary['positive_percentage']:.1f}%")
+print(f"Positive: {summary['positive']}, Negative: {summary['negative']}")
+```
+
+### Real-time Sentiment Monitoring
+
+```python
+import requests
+import time
+from datetime import datetime
+
+class SentimentMonitor:
+    def __init__(self, api_url="http://127.0.0.1:3200/textbased_emotion"):
+        self.api_url = api_url
+        self.sentiment_log = []
+    
+    def analyze(self, text, source=None):
+        """
+        Analyze sentiment and log the result
+        """
+        encoded_text = requests.utils.quote(text)
+        url = f"{self.api_url}?text={encoded_text}"
+        
+        response = requests.get(url)
+        data = response.json()
+        
+        log_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'source': source,
+            'text': text,
+            'sentiment': data['emotion'],
+            'inappropriate': data['inappropriate']
+        }
+        
+        self.sentiment_log.append(log_entry)
+        return log_entry
+    
+    def get_recent_sentiment_trend(self, minutes=60):
+        """
+        Get sentiment trend for the last N minutes
+        """
+        recent = [entry for entry in self.sentiment_log 
+                 if (datetime.now() - datetime.fromisoformat(entry['timestamp'])).seconds < minutes * 60]
+        
+        positive_count = sum(1 for e in recent if e['sentiment'] == 'Positive')
+        negative_count = sum(1 for e in recent if e['sentiment'] == 'Negative')
+        
+        return {
+            'positive': positive_count,
+            'negative': negative_count,
+            'total': len(recent),
+            'sentiment_score': (positive_count / len(recent) * 100) if recent else 0
+        }
+
+# Example usage
+monitor = SentimentMonitor()
+
+# Monitor customer service chats
+monitor.analyze("Thanks for the quick response!", source="chat")
+monitor.analyze("This is taking too long", source="chat")
+monitor.analyze("Perfect, exactly what I needed", source="chat")
+
+# Get trend
+trend = monitor.get_recent_sentiment_trend(minutes=60)
+print(f"Sentiment Score: {trend['sentiment_score']:.1f}%")
+```
+
+### Integration with Reviews Platform
+
+```python
+import requests
+
+class ReviewAnalyzer:
+    def __init__(self):
+        self.api_url = "http://127.0.0.1:3200/textbased_emotion"
+    
+    def analyze_review(self, review_text, star_rating):
+        """
+        Analyze review and detect sentiment-rating discrepancies
+        """
+        encoded_text = requests.utils.quote(review_text)
+        url = f"{self.api_url}?text={encoded_text}"
+        
+        response = requests.get(url)
+        data = response.json()
+        
+        sentiment = data['emotion']
+        
+        # Detect discrepancies
+        discrepancy = False
+        if star_rating >= 4 and sentiment == 'Negative':
+            discrepancy = True
+            note = "High rating but negative sentiment detected"
+        elif star_rating <= 2 and sentiment == 'Positive':
+            discrepancy = True
+            note = "Low rating but positive sentiment detected"
+        else:
+            note = "Sentiment matches rating"
+        
+        return {
+            'review': review_text,
+            'star_rating': star_rating,
+            'sentiment': sentiment,
+            'discrepancy': discrepancy,
+            'note': note,
+            'inappropriate': data['inappropriate']
+        }
+
+# Example usage
+analyzer = ReviewAnalyzer()
+
+result = analyzer.analyze_review(
+    "Great product but shipping was slow",
+    star_rating=4
+)
+print(f"Sentiment: {result['sentiment']}")
+print(f"Note: {result['note']}")
+```
+
+## Advanced Analytics
+
+### Sentiment Trends Over Time
+
+```python
+import requests
+from datetime import datetime, timedelta
+import json
+
+def analyze_time_series(reviews_with_dates):
+    """
+    Analyze sentiment trends over time periods
+    """
+    daily_sentiment = {}
+    
+    for review in reviews_with_dates:
+        date = review['date'].strftime('%Y-%m-%d')
+        text = review['text']
+        
+        # Get sentiment
+        encoded_text = requests.utils.quote(text)
+        url = f"http://127.0.0.1:3200/textbased_emotion?text={encoded_text}"
+        response = requests.get(url)
+        data = response.json()
+        
+        if date not in daily_sentiment:
+            daily_sentiment[date] = {'positive': 0, 'negative': 0}
+        
+        if data['emotion'] == 'Positive':
+            daily_sentiment[date]['positive'] += 1
+        else:
+            daily_sentiment[date]['negative'] += 1
+    
+    return daily_sentiment
+```
+
+## Best Practices
+
+<Card title="Sentiment Analysis Guidelines" icon="lightbulb">
+  - **Context matters**: Sentiment analysis works best with complete sentences and paragraphs
+  - **Combine with toxicity**: Use both sentiment and toxicity classifications for comprehensive insights
+  - **Batch processing**: For large datasets, implement rate limiting and batch processing
+  - **Handle edge cases**: Short texts like "OK" or "Fine" may be ambiguous - consider context
+  - **Track over time**: Monitor sentiment trends rather than individual data points for better insights
+  - **Cross-reference data**: Compare sentiment with other metrics (star ratings, NPS scores) for validation
+</Card>
+
+## Next Steps
+
+- Learn about [Content Moderation](/use-cases/content-moderation) using the 6 toxicity categories
+- Understand the text processing pipeline in microservice.py:94-120
+- Explore entity extraction features (countries, dates, people names) for richer analysis

@@ -1,0 +1,122 @@
+---
+title: Text-based emotion prediction
+description: Analyze text for inappropriate language, emotional sentiment, and toxicity classification across six categories
+---
+
+## What is text-based emotion prediction?
+
+This machine learning microservice analyzes text content to detect inappropriate language, classify emotional sentiment, and categorize messages across six toxicity dimensions. The model uses a combination of neural networks and traditional NLP techniques to provide comprehensive text analysis.
+
+The service identifies:
+- **Inappropriate language detection** - Binary classification of overall content appropriateness
+- **Emotional sentiment** - Positive or negative emotion classification
+- **Six toxicity categories** - toxic, severe_toxic, obscene, threat, insult, and identity_hate
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card
+    title="Multi-model architecture"
+    icon="brain"
+    href="#model-architecture"
+  >
+    Combines PyTorch neural networks with scikit-learn classifiers for comprehensive text analysis
+  </Card>
+  <Card
+    title="REST API endpoint"
+    icon="code"
+    href="/quickstart"
+  >
+    Simple HTTP GET request to analyze any text and receive detailed predictions
+  </Card>
+  <Card
+    title="Real-time inference"
+    icon="bolt"
+    href="/quickstart#make-your-first-prediction"
+  >
+    Get instant predictions on text content through a lightweight Flask microservice
+  </Card>
+  <Card
+    title="Six toxicity classifiers"
+    icon="shield-halved"
+    href="#toxicity-categories"
+  >
+    Detect toxic, severe_toxic, obscene, threat, insult, and identity_hate content
+  </Card>
+</CardGroup>
+
+## Model architecture
+
+The service uses a hybrid approach with two complementary models:
+
+### PyTorch neural network
+
+A custom feedforward neural network (`base_line` class in microservice.py:51-70) processes word embeddings:
+
+- **Input layer**: 10-dimensional word embeddings from a trained embedding matrix
+- **Hidden layers**: Three fully connected layers (2048 → 1024 → 512 neurons)
+- **Activation**: ReLU activation between layers
+- **Output layer**: 6 neurons with sigmoid activation for multi-label classification
+- **Architecture**:
+
+```python
+class base_line(nn.Module):
+  def __init__(self,fin,out):
+    super(base_line,self).__init__()
+    self.out = out
+    self.fin = fin
+    self.fc1 = nn.Linear(self.fin,2048)
+    self.fc2 = nn.Linear(2048,1024)
+    self.fc3 = nn.Linear(1024,512)
+    self.relu = nn.ReLU()
+    self.fc4 = nn.Linear(512,self.out)
+    self.sigmoid = nn.Sigmoid()
+```
+
+The model outputs six probability scores (threshold: 0.29) for each toxicity category.
+
+### Scikit-learn emotion classifier
+
+A traditional machine learning classifier handles sentiment analysis:
+
+- **Text vectorization**: TF-IDF vectorizer converts cleaned text to numerical features
+- **Classification**: Binary positive/negative emotion prediction
+- **Integration**: Works alongside the neural network to provide overall sentiment
+
+<Note>
+  The neural network model weights are loaded from `models/model_26_87.12.pth`, achieving 87.12% accuracy on the validation set.
+</Note>
+
+## Toxicity categories
+
+Each text input is evaluated across six dimensions:
+
+| Category | Description |
+|----------|-------------|
+| **toxic** | General toxicity in language |
+| **severe_toxic** | Extremely toxic content |
+| **obscene** | Obscene or vulgar language |
+| **threat** | Threatening language |
+| **insult** | Insulting content |
+| **identity_hate** | Hate speech targeting identity groups |
+
+A text is marked as inappropriate when all six categories exceed the 0.29 threshold (microservice.py:219).
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Make your first prediction in under 5 minutes
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Detailed setup instructions for local development
+  </Card>
+</CardGroup>

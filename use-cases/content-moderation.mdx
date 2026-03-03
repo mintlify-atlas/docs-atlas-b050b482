@@ -1,0 +1,179 @@
+---
+title: 'Content Moderation'
+description: 'Use toxicity classification to automatically moderate user-generated content'
+---
+
+## Overview
+
+The emotion prediction API provides 6 distinct toxicity categories to help you identify and moderate inappropriate content. Each category uses a threshold of **0.29** to determine if content should be flagged.
+
+## Toxicity Categories
+
+The API classifies text across six categories:
+
+<CardGroup cols={2}>
+  <Card title="Toxic" icon="triangle-exclamation">
+    General toxic language or rude comments
+  </Card>
+  <Card title="Severe Toxic" icon="skull">
+    Extremely toxic content with strong offensive language
+  </Card>
+  <Card title="Obscene" icon="ban">
+    Profanity, vulgar, or sexually explicit content
+  </Card>
+  <Card title="Threat" icon="gun">
+    Threatening language or intimidation
+  </Card>
+  <Card title="Insult" icon="face-angry">
+    Personal insults or attacks
+  </Card>
+  <Card title="Identity Hate" icon="heart-crack">
+    Hate speech targeting identity groups
+  </Card>
+</CardGroup>
+
+## How It Works
+
+The API analyzes text and returns predictions for each category. Content is flagged when the model's confidence exceeds the 0.29 threshold (see microservice.py:206-211).
+
+### Inappropriate Content Detection
+
+Content is marked as **inappropriate** when ALL six toxicity categories are flagged simultaneously (microservice.py:219):
+
+```python
+inappropriate = its_toxic and its_severe_toxic and its_obscene and its_threat and its_insult and its_identity_hate
+```
+
+## API Usage
+
+### Basic Request
+
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=Your%20text%20here"
+```
+
+### Example Response
+
+The API returns classification results for each category:
+
+```json
+{
+  "toxic_result": "Yes",
+  "severe_toxic_result": "No",
+  "obscene_result": "Yes",
+  "threat_result": "No",
+  "insult_result": "Yes",
+  "identity_hate_result": "No",
+  "inappropriate": false
+}
+```
+
+## Use Case Scenarios
+
+<CardGroup cols={2}>
+  <Card title="Social Media Platform" icon="comments">
+    Filter toxic comments in real-time before they appear publicly. Flag content for human review when multiple categories are triggered.
+  </Card>
+  <Card title="Community Forums" icon="users">
+    Automatically moderate forum posts and threads. Create different moderation levels based on which toxicity categories are detected.
+  </Card>
+  <Card title="Customer Support" icon="headset">
+    Monitor customer messages to identify abusive language directed at support staff. Escalate severe cases automatically.
+  </Card>
+  <Card title="Content Publishing" icon="newspaper">
+    Screen user submissions before publication. Maintain brand safety by preventing inappropriate content from going live.
+  </Card>
+</CardGroup>
+
+## Implementation Example
+
+### Automated Moderation System
+
+```python
+import requests
+
+def moderate_content(user_text):
+    # Call the emotion prediction API
+    url = f"http://127.0.0.1:3200/textbased_emotion?text={user_text}"
+    response = requests.get(url)
+    
+    # Parse results
+    data = response.json()
+    
+    # Define moderation actions based on toxicity
+    if data['inappropriate']:
+        return "BLOCK", "Content violates all toxicity guidelines"
+    
+    # Check individual categories for specific actions
+    high_risk_categories = [
+        data['severe_toxic_result'],
+        data['threat_result'],
+        data['identity_hate_result']
+    ]
+    
+    if 'Yes' in high_risk_categories:
+        return "REVIEW", "High-risk content requires human review"
+    
+    medium_risk_categories = [
+        data['toxic_result'],
+        data['obscene_result'],
+        data['insult_result']
+    ]
+    
+    if 'Yes' in medium_risk_categories:
+        return "FLAG", "Content flagged for potential issues"
+    
+    return "APPROVE", "Content is clean"
+
+# Example usage
+action, reason = moderate_content("This is a normal friendly message")
+print(f"Action: {action}, Reason: {reason}")
+# Output: Action: APPROVE, Reason: Content is clean
+```
+
+### Multi-tier Moderation
+
+```python
+def get_moderation_tier(results):
+    """
+    Assign moderation tier based on toxicity categories
+    """
+    # Tier 1: Immediate block (all categories flagged)
+    if results['inappropriate']:
+        return 1, "Immediate block - all categories flagged"
+    
+    # Tier 2: Severe content (3+ categories)
+    flagged_count = sum([
+        results['toxic_result'] == 'Yes',
+        results['severe_toxic_result'] == 'Yes',
+        results['obscene_result'] == 'Yes',
+        results['threat_result'] == 'Yes',
+        results['insult_result'] == 'Yes',
+        results['identity_hate_result'] == 'Yes'
+    ])
+    
+    if flagged_count >= 3:
+        return 2, "High risk - multiple categories flagged"
+    
+    # Tier 3: Moderate content (1-2 categories)
+    if flagged_count >= 1:
+        return 3, "Moderate risk - requires review"
+    
+    # Tier 4: Clean content
+    return 4, "Clean content"
+```
+
+## Best Practices
+
+<Card title="Moderation Guidelines" icon="list-check">
+  - **Combine with human review**: Use the API for initial filtering, but have humans review edge cases
+  - **Set appropriate thresholds**: The default 0.29 threshold works well, but adjust based on your use case
+  - **Monitor false positives**: Track incorrectly flagged content to improve your moderation workflow
+  - **Provide user feedback**: Let users know why content was flagged and give them a chance to edit
+  - **Log all decisions**: Keep records of moderation actions for transparency and appeals
+</Card>
+
+## Next Steps
+
+- Learn how to use [Sentiment Analysis](/use-cases/sentiment-analysis) for positive/negative emotion detection
+- Explore the API's entity extraction features for dates, countries, and people names

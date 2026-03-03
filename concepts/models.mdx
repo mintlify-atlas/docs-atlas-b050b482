@@ -1,0 +1,229 @@
+---
+title: 'Model Architecture'
+description: 'Deep dive into the neural network and machine learning models'
+---
+
+## Base Neural Network
+
+The `base_line` class implements a feedforward neural network for multi-label toxicity classification.
+
+### Architecture Overview
+
+```python
+class base_line(nn.Module):
+  def __init__(self, fin, out):
+    super(base_line, self).__init__()
+    self.out = out
+    self.fin = fin
+    self.fc1 = nn.Linear(self.fin, 2048)
+    self.fc2 = nn.Linear(2048, 1024)
+    self.fc3 = nn.Linear(1024, 512)
+    self.relu = nn.ReLU()
+    self.fc4 = nn.Linear(512, self.out)
+    self.sigmoid = nn.Sigmoid()
+```
+
+### Layer Structure
+
+The network consists of 4 fully connected layers with progressive dimensionality reduction:
+
+| Layer | Input Dimension | Output Dimension | Activation |
+|-------|----------------|------------------|------------|
+| fc1 | 10 | 2048 | None |
+| fc2 | 2048 | 1024 | None |
+| fc3 | 1024 | 512 | ReLU |
+| fc4 | 512 | 6 | Sigmoid |
+
+<Note>
+The network expands from 10 dimensions to 2048 in the first layer, then progressively compresses to the final 6 outputs.
+</Note>
+
+### Forward Pass
+
+```python
+def forward(self, x):
+    out = self.fc1(x)
+    out = self.fc2(out)
+    out = self.fc3(out)
+    our = self.relu(out)  # Applied to fc3 output
+    out = self.fc4(out)
+    out = self.sigmoid(out)
+    return out
+```
+
+<Info>
+Note: The code has a typo where `our = self.relu(out)` stores the result in `our`, but the next layer uses `out`. This means ReLU activation is not actually applied in the forward pass.
+</Info>
+
+### Activation Functions
+
+**ReLU (Rectified Linear Unit)**
+```python
+self.relu = nn.ReLU()
+```
+- Intended for hidden layer (fc3)
+- Formula: f(x) = max(0, x)
+- Prevents vanishing gradients in deep networks
+
+**Sigmoid**
+```python
+self.sigmoid = nn.Sigmoid()
+```
+- Applied to output layer
+- Formula: f(x) = 1 / (1 + e^(-x))
+- Produces probabilities between 0 and 1 for each toxicity class
+
+<Tip>
+Sigmoid activation on the output layer is appropriate for multi-label classification, as each of the 6 toxicity types can be independently present or absent.
+</Tip>
+
+## Model Initialization
+
+```python
+model = base_line(10, 6)
+model.load_state_dict(torch.load('models/model_26_87.12.pth', 
+                                 map_location=torch.device('cpu')))
+model.eval()
+```
+
+### Hyperparameters
+
+- **Input Features**: 10 (embedding dimension)
+- **Output Classes**: 6 (toxicity categories)
+- **Hidden Layer Sizes**: [2048, 1024, 512]
+- **Classification Threshold**: 0.29
+
+<Info>
+`model.eval()` sets the model to evaluation mode, disabling dropout and batch normalization training behavior.
+</Info>
+
+## Word Embeddings
+
+### Embedding Layer
+
+```python
+with open('models/word_dict.json') as json_file:
+    word_dict = json.load(json_file)
+
+embedding = nn.Embedding(len(word_dict), 10)
+```
+
+- **Vocabulary Size**: `len(word_dict)` (dynamically loaded)
+- **Embedding Dimension**: 10
+- **Purpose**: Maps word indices to 10-dimensional vectors
+
+### Text Encoding Process
+
+**Step 1: Word to Index Mapping**
+```python
+def coded_words(x, word_dict):
+    return [word_dict[w] for w in x if w in word_dict]
+```
+
+Converts words to their integer indices, filtering out unknown words.
+
+**Step 2: Average Embedding**
+```python
+def average_tensor(x):
+    tensor_d = torch.zeros((1, 10))
+    for t in x:
+        tensor_d += t
+    return tensor_d / x.shape[0]
+```
+
+Computes the mean of all word embeddings to create a fixed-size sentence representation.
+
+**Step 3: Text to Tensor Conversion**
+```python
+def converter(words):
+    return average_tensor(
+        embedding(torch.tensor(coded_words(words.split(), word_dict)))
+    )
+```
+
+<Note>
+The averaging approach creates a bag-of-words style representation that loses word order information but produces a consistent 10-dimensional input for the neural network.
+</Note>
+
+## Emotion Classifier
+
+A separate scikit-learn model handles emotion classification:
+
+```python
+emotion_classifier = pickle.load(open('models/emotion_classifier.model', 'rb'))
+```
+
+### Usage
+
+```python
+text_cleaned = clean_text(text)
+text_vector = vectorizer.fit_transform([text_cleaned])
+emotion = emotion_classifier.predict(text_vector)[0]
+```
+
+<Tip>
+The emotion classifier operates on cleaned and vectorized text separately from the neural network, allowing for complementary analysis.
+</Tip>
+
+### Fallback Logic
+
+```python
+try:
+    emotion = emotion_classifier.predict(text_vector)[0]
+    if emotion == "negative" and not inappropriate:
+        emotion = "Positive"
+except Exception:
+    emotion = "Negative" if inappropriate else "Positive"
+```
+
+The system includes error handling with a fallback that uses toxicity predictions to infer emotion.
+
+## Vectorizer
+
+```python
+vectorizer = pickle.load(open('models/vectorizer2.pickle', 'rb'))
+```
+
+Converts cleaned text to numerical features for the emotion classifier. The specific vectorizer type (TF-IDF, Count, etc.) is determined by the pickled model.
+
+## Inference Process
+
+### Toxicity Prediction
+
+```python
+out = converter(text)  # Convert to 10-dim tensor
+res = model(out)       # Get 6 toxicity scores
+
+toxic_result = "Yes" if res[0][0].item() > 0.29 else "No"
+severe_toxic_result = "Yes" if res[0][1].item() > 0.29 else "No"
+obscene_result = "Yes" if res[0][2].item() > 0.29 else "No"
+threat_result = "Yes" if res[0][3].item() > 0.29 else "No"
+insult_result = "Yes" if res[0][4].item() > 0.29 else "No"
+identity_hate_result = "Yes" if res[0][5].item() > 0.29 else "No"
+```
+
+### Output Classes
+
+The neural network outputs 6 probabilities:
+
+0. **Toxic** - General toxicity
+1. **Severe Toxic** - Extreme toxicity
+2. **Obscene** - Obscene language
+3. **Threat** - Threatening content
+4. **Insult** - Insulting language
+5. **Identity Hate** - Hate speech targeting identity groups
+
+<Info>
+A threshold of 0.29 (rather than 0.5) suggests the model is calibrated to be more sensitive to toxic content, prioritizing recall over precision.
+</Info>
+
+## Model Performance
+
+Based on the model filename `model_26_87.12.pth`:
+
+- **Training Epoch**: 26
+- **Accuracy**: 87.12%
+
+<Tip>
+The model weights are loaded with `map_location=torch.device('cpu')` to ensure compatibility in CPU-only environments, making deployment more flexible.
+</Tip>

@@ -1,0 +1,101 @@
+---
+title: 'Response Format'
+description: 'Structure and fields returned by the API'
+---
+
+## Response Structure
+
+The API returns an HTML page with the following fields rendered in the template:
+
+### Input Text
+
+<ResponseField name="text" type="string">
+  The original text that was analyzed.
+</ResponseField>
+
+### Toxicity Results
+
+<ResponseField name="toxic_result" type="string">
+  Whether the text is toxic. Returns "Yes" or "No" based on a threshold of 0.29.
+</ResponseField>
+
+<ResponseField name="severe_toxic_result" type="string">
+  Whether the text contains severely toxic language. Returns "Yes" or "No".
+</ResponseField>
+
+<ResponseField name="obscene_result" type="string">
+  Whether the text is obscene. Returns "Yes" or "No".
+</ResponseField>
+
+<ResponseField name="threat_result" type="string">
+  Whether the text contains threats. Returns "Yes" or "No".
+</ResponseField>
+
+<ResponseField name="insult_result" type="string">
+  Whether the text is insulting. Returns "Yes" or "No".
+</ResponseField>
+
+<ResponseField name="identity_hate_result" type="string">
+  Whether the text contains identity-based hate speech. Returns "Yes" or "No".
+</ResponseField>
+
+<ResponseField name="inappropriate" type="boolean">
+  True if ALL six toxicity categories return "Yes", otherwise False.
+</ResponseField>
+
+### Emotion Analysis
+
+<ResponseField name="emotion" type="string">
+  The detected emotion: "Positive" or "Negative". 
+  
+  If all toxicity flags are "Yes", emotion is set to "Negative". Otherwise, the emotion classifier predicts the sentiment.
+</ResponseField>
+
+### Entity Extraction
+
+<ResponseField name="countries" type="string">
+  Comma-separated list of countries mentioned in the text. Extracted using country detection algorithms.
+</ResponseField>
+
+<ResponseField name="people" type="string">
+  Comma-separated list of people names identified in the text. Country names and dates are filtered out from this field.
+</ResponseField>
+
+<ResponseField name="dates" type="string">
+  Comma-separated list of dates found in the text.
+</ResponseField>
+
+<ResponseField name="hours" type="array">
+  Array of time ranges found in the text, matching the pattern "HH:MM - HH:MM".
+  
+  Each element is a tuple of (start_time, end_time).
+</ResponseField>
+
+## Example Response
+
+For the request:
+```bash
+curl "http://127.0.0.1:3200/textbased_emotion?text=Hello%20world%2C%20have%20a%20great%20day!"
+```
+
+The API would return an HTML page with fields like:
+
+```
+text: "Hello world, have a great day!"
+toxic_result: "No"
+severe_toxic_result: "No"
+obscene_result: "No"
+threat_result: "No"
+insult_result: "No"
+identity_hate_result: "No"
+inappropriate: False
+emotion: "Positive"
+countries: ""
+people: ""
+dates: ""
+hours: []
+```
+
+## Toxicity Threshold
+
+All toxicity classifications use a **threshold of 0.29**. When the model's confidence score for a category exceeds this threshold, the result is "Yes", otherwise "No".
