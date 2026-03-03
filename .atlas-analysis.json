@@ -1,0 +1,69 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "Text-based Emotion Prediction",
+  "projectDescription": "ML-powered text analysis for emotion detection, sentiment classification, and toxicity prediction across six categories",
+  "theme": "aspen",
+  "primaryColor": "#7C3AED",
+  "lightColor": "#A78BFA",
+  "darkColor": "#5B21B6",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "quickstart",
+          "installation"
+        ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/architecture",
+          "concepts/models",
+          "concepts/text-processing"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api/overview",
+          "api/endpoints",
+          "api/response-format"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/training",
+          "guides/deployment",
+          "guides/entity-extraction"
+        ]
+      },
+      {
+        "group": "Use Cases",
+        "pages": [
+          "use-cases/content-moderation",
+          "use-cases/sentiment-analysis"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-label toxicity classification (toxic, severe_toxic, obscene, threat, insult, identity_hate)",
+    "Sentiment analysis (positive/negative emotion detection)",
+    "Named entity extraction (people, dates, countries)",
+    "Flask-based REST API for real-time predictions",
+    "PyTorch neural network with embeddings",
+    "Text preprocessing and lemmatization"
+  ],
+  "publicApiSurface": [
+    "GET /textbased_emotion?text=<input_text>",
+    "clean_text(text)",
+    "converter(words)",
+    "get_dates(text)",
+    "find_country(text)",
+    "get_people_names(text)",
+    "base_line neural network model"
+  ]
+}
