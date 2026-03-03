@@ -3,6 +3,24 @@ title: 'Endpoints'
 description: 'API endpoint documentation for text-based emotion prediction'
 ---
 
+## GET /
+
+Returns the home page of the microservice with a simple web interface.
+
+### Response
+
+Returns an HTML template (`home.html`) that provides a user-friendly interface for accessing the emotion prediction service.
+
+### Request Example
+
+```bash
+curl "http://127.0.0.1:3200/"
+```
+
+<Note>
+This endpoint is defined in microservice.py:193-195 and returns a basic landing page for the web interface.
+</Note>
+
 ## GET /textbased_emotion
 
 Analyzes text content for toxicity, emotion, and extracts entities like countries, people, and dates.
@@ -57,6 +75,6 @@ Returns an HTML page rendered with the analysis results. See [Response Format](/
 ### Error Handling
 
 If no text parameter is provided or the text cannot be parsed, the API returns an error page with:
-```
+```text
 Sorry! Unable to parse
 ```
